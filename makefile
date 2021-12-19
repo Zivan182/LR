@@ -4,7 +4,7 @@ TEST		=tests
 all: compile run lcov remove genhtml
 
 compile:
-	g++ --coverage $(NAME).cpp $(TEST).cpp -o $(NAME)_tests
+	g++ --coverage $(NAME).cpp $(TEST).cpp -o $(NAME)_tests -lgtest -lpthread
 
 run:
 	./$(NAME)_tests
