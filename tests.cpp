@@ -32,10 +32,14 @@ TEST(TestParsing, test3) {
 }
 TEST(TestParsing, test4) {
     grammar G4({ {'S', "A"}, {'S', "AB"}, {'A', "a"}, {'A', "abc"}, {'B', "bc"} });
+	bool flag;
     try {
         LR parser4(G4);
-        ASSERT_FALSE(false);
-    } catch (bad_grammar) {}
+        flag = false;
+    } catch (bad_grammar) {
+		flag = true;
+	}
+	ASSERT_TRUE(flag);
 }
 
 
