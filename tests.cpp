@@ -1,4 +1,5 @@
 #include "LR.hpp"
+
 #include <gtest/gtest.h>
 
 class TestLR : public ::testing::Test {};
@@ -9,7 +10,7 @@ TEST(TestLR, test_closure) {
   LR::situation begin('#', {}, {'S'}, '$'); // S' -> .S, $
   LR::state E("", 0);
   E.insert(begin);
-  parser.CLOSURE(E);
+  parser.Closure(E);
   LR::situation sit1('S', {}, {'S', 'a', 'S', 'b'}, '$'); // S -> .SaSb, $
   LR::situation sit2('S', {}, {'S', 'a', 'S', 'b'}, 'a'); // S -> .SaSb, a
   LR::situation sit3('S', {}, {}, '$');                   // S -> ., $
@@ -25,15 +26,15 @@ TEST(TestLR, test_goto) {
   LR::situation sit2('S', {}, {'b'}, '$'); // S -> .b, $
   LR::situation sit3('S', {}, {}, '$');    // S -> ., $
 
-  auto p1 = parser.GOTO(sit1, 'a');
+  auto p1 = parser.Goto(sit1, 'a');
   LR::situation ans('S', {'a'}, {}, '$'); // S -> a., $
   ASSERT_TRUE(p1.first);
   ASSERT_EQ(p1.second, ans);
 
-  auto p2 = parser.GOTO(sit2, 'a');
+  auto p2 = parser.Goto(sit2, 'a');
   ASSERT_FALSE(p2.first);
 
-  auto p3 = parser.GOTO(sit3, 'a');
+  auto p3 = parser.Goto(sit3, 'a');
   ASSERT_FALSE(p3.first);
 }
 
