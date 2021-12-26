@@ -19,9 +19,6 @@ using std::stack;
 using std::string;
 using std::vector;
 
-void dfs(char v, map<char, set<char>> &G, map<char, bool> &used, set<char> &ans,
-         set<char> &term);
-
 class LR;
 
 struct rule {
@@ -58,15 +55,21 @@ private:
   FRIEND_TEST(TestLR, test_closure);
 
   struct action { // действие в ячейках таблицы
-    char act = '-'; // s - shift, r - reduce, n - переход по нетерминалу
+    enum ActionType : char {
+      Shift = 's',
+      Reduce = 'r',
+      NonTerm = 'n',
+      Reject = '-'
+    };
+    ActionType act = Reject;
     int number; // номер состояния в случае s/n, номер правила в случае r
     action &operator=(const action &another);
   };
 
-  struct situation {   // ситуация
-    char from;         // левая часть
-    deque<char> left;  // правая часть до точки
-    deque<char> right; // правая часть после точки
+  struct situation { // ситуация
+    char from;       // левая часть ситуации
+    deque<char> left; // символы до точки правой части ситуации
+    deque<char> right; // символы после точки правой части ситуации
     char next;
     situation(char from, const deque<char> &left, const deque<char> &right,
               char next);
@@ -91,20 +94,21 @@ private:
   set<state> set_of_states;        // множество состояний
   vector<state> states; // пронумерованные состояния
 
-  void FIRST();
-
-  void CLOSURE(const situation &sit, state &st);
-
-  void CLOSURE(state &st);
-
-  pair<bool, situation> GOTO(const situation &sit, char c);
-
-  pair<bool, state> GOTO(const state &st, char c, int number);
-
-  void complete_table();
-
 public:
   LR(const grammar &G);
 
   bool check(const string &w);
+
+private:
+  void First();
+
+  void Closure(const situation &sit, state &st);
+
+  void Closure(state &st);
+
+  pair<bool, situation> Goto(const situation &sit, char c);
+
+  pair<bool, state> Goto(const state &st, char c, int number);
+
+  void complete_table();
 };
