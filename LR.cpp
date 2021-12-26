@@ -1,5 +1,5 @@
 #include "LR.hpp"
-#include <assert.h>
+
 #include <cmath>
 #include <deque>
 #include <iomanip>
@@ -33,7 +33,7 @@ void dfs(char v, map<char, set<char>> &G, map<char, bool> &used, set<char> &ans,
 
 rule::rule(char from, const deque<char> &to) : from(from), to(to) {}
 bool rule::operator<(const rule &s) const {
-  return ((from < s.from) || (from == s.from && to < s.to));
+  return std::tie(from, to) < std::tie(s.from, s.to);
 }
 
 grammar::grammar() {
@@ -88,34 +88,33 @@ LR::situation::situation(char from, const deque<char> &left,
     : from(from), left(left), right(right), next(next) {}
 
 bool LR::situation::operator<(const situation &s) const {
-  return (
-      (from < s.from) || (from == s.from && left < s.left) ||
-      (from == s.from && left == s.left && right < s.right) ||
-      (from == s.from && left == s.left && right == s.right && next < s.next));
+  return std::tie(from, left, right, next) <
+         std::tie(s.from, s.left, s.right, s.next);
 }
 
 bool LR::situation::operator==(const situation &s) const {
-  return ((from == s.from) && (left == s.left) && (right == s.right) &&
-          (next == s.next));
+  return std::tie(from, left, right, next) ==
+         std::tie(s.from, s.left, s.right, s.next);
 }
 
 void LR::state::insert(const situation &sit) { list.insert(sit); }
+
 LR::state::state(const string &prefix, int number)
     : prefix(prefix), number(number) {}
 
 bool LR::state::operator<(const state &s) const { return (list < s.list); }
 
-void LR::FIRST() {
+void LR::First() {
   map<char, set<char>> Graph;
   // строим граф на символах, проводим ребро c->d, если из c можно вывести слово
   // с первым символом d
   for (auto c : G.alphabet) {
     for (auto &r : G.rules[c]) {
-      for (int i = 0; i != (r.to).size(); ++i) {
+      for (int i = 0; i != r.to.size(); ++i) {
         char d = r.to[i];
         Graph[c].insert(d);
-        if (!(G.e_generating)
-                 .count(d)) // если не эпсилон-порождающий, заканчиваем
+        if (!G.e_generating.count(
+                d)) // если не эпсилон-порождающий, заканчиваем
           break;
       }
     }
@@ -129,8 +128,8 @@ void LR::FIRST() {
   }
 }
 
-void LR::CLOSURE(const situation &sit, state &st) {
-  if ((sit.right).empty() || (G.term).count((sit.right)[0]))
+void LR::Closure(const situation &sit, state &st) {
+  if (sit.right.empty() || G.term.count(sit.right[0]))
     return;
   deque<char> copy = sit.right;
   copy.pop_front();
@@ -142,67 +141,67 @@ void LR::CLOSURE(const situation &sit, state &st) {
       next.insert(c);
     }
     next.insert(first[c].begin(), first[c].end());
-    if (!(G.e_generating).count(c)) // если не эпсилон-порождающий, заканчиваем
+    if (!G.e_generating.count(c)) // если не эпсилон-порождающий, заканчиваем
       break;
   }
-  for (auto &r : G.rules.at((sit.right)[0])) {
+  for (auto &r : G.rules.at(sit.right[0])) {
     for (auto c : next) {
-      st.insert({(sit.right)[0], {}, r.to, c});
+      st.insert({sit.right[0], {}, r.to, c});
     }
   }
 }
 
-void LR::CLOSURE(state &st) {
+void LR::Closure(state &st) {
   while (true) {
-    int sz = (st.list).size();
+    int sz = st.list.size();
     for (auto &s : st.list) {
-      CLOSURE(s, st);
+      Closure(s, st);
     }
-    if ((st.list).size() == sz)
+    if (st.list.size() == sz)
       return;
   }
 }
 
-pair<bool, LR::situation> LR::GOTO(const situation &sit, char c) {
-  if ((sit.right).empty() || (sit.right)[0] != c)
+pair<bool, LR::situation> LR::Goto(const situation &sit, char c) {
+  if (sit.right.empty() || sit.right[0] != c)
     return {false, situation()};
   situation copy = sit;
-  (copy.left).push_back(c);
-  (copy.right).pop_front();
+  copy.left.push_back(c);
+  copy.right.pop_front();
   return {true, copy};
 }
 
-pair<bool, LR::state> LR::GOTO(const state &st, char c, int number) {
+pair<bool, LR::state> LR::Goto(const state &st, char c, int number) {
   state next(st.prefix + c, number);
   for (auto &s : st.list) {
-    pair<bool, situation> gt = GOTO(s, c);
+    pair<bool, situation> gt = Goto(s, c);
     if (gt.first)
       next.insert(gt.second);
   }
-  CLOSURE(next);
-  return {!(next.list).empty(), next};
+  Closure(next);
+  return {!next.list.empty(), next};
 }
 
 void LR::complete_table() {
   for (int i = 0; i != states.size(); ++i) {
     const state &st = states[i];
     for (auto &sit : st.list) {
-      if ((sit.right).empty()) {
+      if (sit.right.empty()) {
         rule r = {sit.from, sit.left};
         int rule_number = G.numbers.at(r);
-        table[st.number][sit.next] = {'r', rule_number};
+        table[st.number][sit.next] = {LR::action::Reduce, rule_number};
       }
     }
   }
 }
 
 LR::LR(const grammar &G) : G(G), table(1) {
-  FIRST();
+  First();
   auto &alphabet = G.alphabet;
   situation begin('#', {}, {'S'}, '$');
   state E("", 0);
   E.insert(begin);
-  CLOSURE(E);
+  Closure(E);
   set_of_states.insert(E);
   states.push_back(E);
   int sz = set_of_states.size();
@@ -210,7 +209,7 @@ LR::LR(const grammar &G) : G(G), table(1) {
     for (int i = sz - 1; i != states.size(); ++i) {
       auto st = states[i];
       for (auto &c : alphabet) {
-        pair<bool, state> gt = GOTO(st, c, states.size()); // новое состояние
+        pair<bool, state> gt = Goto(st, c, states.size()); // новое состояние
         if (!gt.first)
           continue;
         if (!set_of_states.count(gt.second)) {
@@ -219,7 +218,7 @@ LR::LR(const grammar &G) : G(G), table(1) {
           table.push_back(map<char, action>());
         }
         int number = set_of_states.find(gt.second)->number;
-        char act = ((G.term).count(c)) ? 's' : 'n';
+        auto act = G.term.count(c) ? LR::action::Shift : LR::action::NonTerm;
         table[i][c] = {act, number};
       }
     }
@@ -243,20 +242,20 @@ bool LR::check(const string &w) {
       next = new_w[i];
     int s = st.top();
     auto &act = table[s][next];
-    if (act.act == 's') {
+    if (act.act == LR::action::Shift) {
       ++i;
       st.push(next);
       st.push(act.number);
-    } else if (act.act == 'n') {
+    } else if (act.act == LR::action::NonTerm) {
       st.push(next);
       st.push(act.number);
-    } else if (act.act == 'r') {
+    } else if (act.act == LR::action::Reduce) {
       if (act.number == 0) {
         ans = true;
         break;
       }
       auto &r = G.v_rules[act.number];
-      int len = (r.to).size();
+      int len = r.to.size();
       for (int j = 0; j != 2 * len; ++j) {
         st.pop();
       }
